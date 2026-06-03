@@ -26,12 +26,16 @@ jobs:
 
       - name: Build Application
         run: mvn clean package
+      - name: Verify Application
+        run: mvn clean verify  
 
       - name: Run Unit Tests
         run: mvn test
-        
-      - name: Upload JAR
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: spring-boot-app
-          path: target/*.jar
+          name: spring-boot-artifact
+          path: |
+           **/target/*.jar
+           **/target/*.war
