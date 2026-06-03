@@ -29,3 +29,9 @@ jobs:
 
       - name: Run Unit Tests
         run: mvn test
+        
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: spring-boot-app
+          path: target/*.jar
