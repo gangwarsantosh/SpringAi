@@ -1,15 +1,19 @@
-name: First Workflow
+name: Spring Ai CI
 
 on:
   push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout Code
         uses: actions/checkout@v4
 
@@ -18,6 +22,10 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+          cache: maven
 
-      - name: Run Tests
-        run: mvn clean test
+      - name: Build Application
+        run: mvn clean package
+
+      - name: Run Unit Tests
+        run: mvn test
