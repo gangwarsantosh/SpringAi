@@ -70,6 +70,19 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+<plugin>
+    <groupId>org.jacoco</groupId>
+    <artifactId>jacoco-maven-plugin</artifactId>
+    <version>0.8.11</version>
+    <executions>
+        <execution>
+            <goals>
+                <goal>prepare-agent</goal> <!-- Tracks coverage -->
+                <goal>report</goal>      <!-- Generates report -->
+            </goals>
+        </execution>
+    </executions>
+</plugin>
 		</plugins>
 	</build>
 

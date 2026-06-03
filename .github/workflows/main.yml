@@ -1,4 +1,4 @@
-name: Spring Ai CI
+name: Spring Boot CI
 
 on:
   push:
@@ -9,11 +9,17 @@ on:
     branches:
       - main
 
+env:
+  APP_NAME: Spring-Boot-App
+  APP_ENV: DEV
+
 jobs:
   build:
+
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout Code
         uses: actions/checkout@v4
 
@@ -24,18 +30,31 @@ jobs:
           java-version: 17
           cache: maven
 
+      - name: Print Environment Variables
+        run: |
+          echo "Application Name: $APP_NAME"
+          echo "Environment: $APP_ENV"
+
+      - name: Verify Secret Exists
+        env:
+          DEMO_SECRET: ${{ secrets.DEMO_SECRET }}
+        run: |
+          echo "Secret loaded successfully"
+
       - name: Build Application
         run: mvn clean package
-      - name: Verify Application
-        run: mvn clean verify  
 
       - name: Run Unit Tests
         run: mvn test
 
-      - name: Upload Artifact
+      - name: Show Build Output
+        run: |
+          find . -name "*.jar"
+
+      - name: Upload JAR Artifact
         uses: actions/upload-artifact@v4
         with:
           name: spring-boot-artifact
           path: |
-           **/target/*.jar
-           **/target/*.war
+            **/target/*.jar
+            **/target/*.war
