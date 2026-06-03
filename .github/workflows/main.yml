@@ -46,6 +46,13 @@ jobs:
 
       - name: Run Unit Tests
         run: mvn test
+      
+      - name: SonarQube Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          mvn clean verify sonar:sonar \
+           -Dsonar.token=${SONAR_TOKEN}
 
       - name: Show Build Output
         run: |
