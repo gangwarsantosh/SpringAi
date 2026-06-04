@@ -48,23 +48,13 @@ jobs:
           ls -la target/site/jacoco/
           test -f target/site/jacoco/jacoco.xml
 
-      - name: Upload JaCoCo Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: jacoco-report
-          path: target/site/jacoco/
-
       - name: SonarCloud Analysis
-        uses: SonarSource/sonarcloud-github-action@master
-        with:
-          projectKey: santosh_SpringAi
-          organization: gangwarsantosh
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          mvn org.sonarsource.scanner.maven:sonar-maven-plugin:4.0.0.4121:sonar \
-          -Dsonar.token=${SONAR_TOKEN} \
-          
+          mvn sonar:sonar \
+            -Dsonar.token=${SONAR_TOKEN} \
+            -Dsonar.host.url=https://sonarcloud.io
 
       - name: Show Build Output
         run: |
@@ -79,4 +69,8 @@ jobs:
             **/target/*.jar
             **/target/*.war
 
-     
+      - name: Upload JaCoCo Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
