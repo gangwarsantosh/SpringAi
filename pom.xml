@@ -30,6 +30,8 @@
 	<properties>
 		<java.version>17</java.version>
 		<spring-ai.version>1.1.7</spring-ai.version>
+  <sonar.organization>gangwarsantosh</sonar.organization>
+    <sonar.projectKey>gangwarsantosh_SpringAi</sonar.projectKey>
 	</properties>
 	<dependencies>
 		<dependency>
