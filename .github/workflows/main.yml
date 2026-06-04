@@ -53,7 +53,7 @@ jobs:
         run: |
           mvn clean verify sonar:sonar \
            -Dsonar.token=${SONAR_TOKEN}
-
+          echo "sonar loaded successfully"
       - name: Show Build Output
         run: |
           find . -name "*.jar"
