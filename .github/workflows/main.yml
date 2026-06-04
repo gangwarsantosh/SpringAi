@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-
   pull_request:
     branches:
       - main
@@ -15,11 +14,9 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout Code
         uses: actions/checkout@v4
 
@@ -38,30 +35,36 @@ jobs:
       - name: Verify Secret Exists
         env:
           DEMO_SECRET: ${{ secrets.DEMO_SECRET }}
+        run: echo "Secret loaded successfully"
+
+      - name: Build, Test and Generate Coverage
+        run: mvn clean verify
+
+      - name: Debug Sonar Configuration
         run: |
-          echo "Secret loaded successfully"
+          echo "Searching for Sonar configuration..."
+          find . -name "sonar-project.properties"
+          grep -R "localhost:9000" . || true
+          grep -R "sonar.host.url" . || true
 
-      - name: Build Application
-        run: mvn clean package
-
-      - name: Run Unit Tests
-        run: mvn test
-      
-      - name: SonarQube Analysis
+      - name: SonarCloud Analysis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          mvn clean verify sonar:sonar \
-           -Dsonar.token=${SONAR_TOKEN}
-          echo "sonar loaded successfully"
+          mvn sonar:sonar \
+            -Dsonar.token=${SONAR_TOKEN} \
+            -Dsonar.host.url=https://sonarcloud.io
+
       - name: Show Build Output
         run: |
           find . -name "*.jar"
+          find . -name "*.war"
 
-      - name: Upload JAR Artifact
+      - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: spring-boot-artifact
           path: |
             **/target/*.jar
             **/target/*.war
+            target/site/jacoco/*
