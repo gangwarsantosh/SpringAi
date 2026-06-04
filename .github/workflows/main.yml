@@ -37,24 +37,18 @@ jobs:
           DEMO_SECRET: ${{ secrets.DEMO_SECRET }}
         run: echo "Secret loaded successfully"
 
-      - name: Build, Test and Generate Coverage
-        run: mvn clean verify
+      - name: Build Application
+        run: mvn clean package
 
-      - name: Debug Sonar Configuration
+      - name: Run Unit Tests and Generate JaCoCo Report
+        run: mvn verify
+
+      - name: Verify JaCoCo Report
         run: |
-          echo "Searching for Sonar configuration..."
-          find . -name "sonar-project.properties"
-          grep -R "localhost:9000" . || true
-          grep -R "sonar.host.url" . || true
+          ls -la target/site/jacoco/
+          test -f target/site/jacoco/jacoco.xml
 
-      - name: SonarCloud Analysis
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          mvn sonar:sonar \
-            -Dsonar.token=${SONAR_TOKEN} \
-            -Dsonar.host.url=https://sonarcloud.io
-
+      
       - name: Show Build Output
         run: |
           find . -name "*.jar"
@@ -67,4 +61,9 @@ jobs:
           path: |
             **/target/*.jar
             **/target/*.war
-            target/site/jacoco/*
+
+      - name: Upload JaCoCo Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
