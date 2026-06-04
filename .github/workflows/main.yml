@@ -55,6 +55,7 @@ jobs:
           path: target/site/jacoco/
 
       - name: SonarCloud Analysis
+        uses: SonarSource/sonarcloud-github-action@master
         with:
           projectKey: santosh_SpringAi
           organization: gangwarsantosh
