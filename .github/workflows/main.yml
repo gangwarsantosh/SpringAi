@@ -66,6 +66,34 @@ jobs:
           scp -i ~/.ssh/ec2_key.pem ${{ env.JAR_FILE }} $EC2_USER@$EC2_HOST:$APP_DIR/app.jar
           echo "JAR deployed successfully"
 
+      - name: Setup Java on EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$EC2_SSH_KEY" > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Install Java on EC2
+          ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          # Check if Java is already installed
+          if ! command -v java &> /dev/null; then
+            echo "Java not found. Installing Java 17..."
+            sudo yum update -y
+            sudo yum install -y java-17-amazon-corretto
+            echo "Java installed successfully"
+          else
+            echo "Java is already installed"
+            java -version
+          fi
+          EOF
+
       - name: Deploy and Restart Application
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
