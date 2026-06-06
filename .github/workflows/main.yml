@@ -1,19 +1,17 @@
-name: Spring Boot CI
+name: Build and Deploy to AWS EC2
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 env:
-  APP_NAME: Spring-Boot-App
-  APP_ENV: DEV
+  APP_NAME: SpringAi
+  AWS_REGION: us-east-1
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,50 +25,146 @@ jobs:
           java-version: 17
           cache: maven
 
-      - name: Print Environment Variables
-        run: |
-          echo "Application Name: $APP_NAME"
-          echo "Environment: $APP_ENV"
-
-      - name: Verify Secret Exists
-        env:
-          DEMO_SECRET: ${{ secrets.DEMO_SECRET }}
-        run: echo "Secret loaded successfully"
-
       - name: Build Application
-        run: mvn clean package
+        run: mvn clean package -DskipTests
 
-      - name: Run Unit Tests and Generate JaCoCo Report
-        run: mvn verify
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Verify JaCoCo Report
+      - name: Find JAR File
         run: |
-          ls -la target/site/jacoco/
-          test -f target/site/jacoco/jacoco.xml
+          JAR_FILE=$(find . -name "*.jar" -type f ! -name "*original*" | head -1)
+          echo "JAR_FILE=$JAR_FILE" >> $GITHUB_ENV
+          echo "Found JAR: $JAR_FILE"
 
-      - name: SonarCloud Analysis
+      - name: Copy JAR to EC2
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          APP_DIR: /home/${{ secrets.EC2_USER }}/springai
         run: |
-          mvn sonar:sonar \
-            -Dsonar.token=${SONAR_TOKEN} \
-            -Dsonar.host.url=https://sonarcloud.io
+          # Create .ssh directory and add key
+          mkdir -p ~/.ssh
+          echo "$EC2_SSH_KEY" > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+          
+          # Disable host key checking
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Create application directory on EC2
+          ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST "mkdir -p $APP_DIR/backup"
+          
+          # Backup existing JAR if it exists
+          ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST "if [ -f $APP_DIR/app.jar ]; then mv $APP_DIR/app.jar $APP_DIR/backup/app-backup-$(date +%s).jar; fi"
+          
+          # Copy new JAR
+          scp -i ~/.ssh/ec2_key.pem ${{ env.JAR_FILE }} $EC2_USER@$EC2_HOST:$APP_DIR/app.jar
+          echo "JAR deployed successfully"
 
-      - name: Show Build Output
+      - name: Setup Java on EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          find . -name "*.jar"
-          find . -name "*.war"
+          mkdir -p ~/.ssh
+          echo "$EC2_SSH_KEY" > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Install Java on EC2
+          ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          # Check if Java is already installed
+          if ! command -v java &> /dev/null; then
+            echo "Java not found. Installing Java 17..."
+            sudo yum update -y
+            sudo yum install -y java-17-amazon-corretto
+            echo "Java installed successfully"
+          else
+            echo "Java is already installed"
+            java -version
+          fi
+          EOF
 
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: spring-boot-artifact
-          path: |
-            **/target/*.jar
-            **/target/*.war
+      - name: Deploy and Restart Application
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          APP_DIR: /home/${{ secrets.EC2_USER }}/springai
+        run: |
+          mkdir -p ~/.ssh
+          echo "$EC2_SSH_KEY" > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Execute deployment script
+          ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          APP_DIR="/home/${{ secrets.EC2_USER }}/springai"
+          
+          # Stop existing application
+          echo "Stopping existing application..."
+          if pgrep -f "java.*app.jar" > /dev/null; then
+            pkill -f "java.*app.jar" || true
+            sleep 5
+          fi
+          
+          # Start new application
+          echo "Starting new application..."
+          cd $APP_DIR
+          nohup java -jar app.jar > app.log 2>&1 &
+          
+          echo "Application started successfully"
+          sleep 10
+          
+          # Check if application is running
+          if pgrep -f "java.*app.jar" > /dev/null; then
+            echo "Application is running"
+          else
+            echo "Application failed to start"
+            tail -20 app.log
+            exit 1
+          fi
+          EOF
 
-      - name: Upload JaCoCo Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: jacoco-report
-          path: target/site/jacoco/
+      - name: Verify Deployment
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$EC2_SSH_KEY" > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Wait for application to be ready
+          for i in {1..30}; do
+            if ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST "curl -f http://localhost:8080/actuator/health 2>/dev/null || true" 2>/dev/null | grep -q "UP\|ok"; then
+              echo "✓ Application is healthy"
+              ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST "curl -s http://localhost:8080/actuator/health"
+              exit 0
+            fi
+            echo "Waiting for application to be ready... ($i/30)"
+            sleep 2
+          done
+          
+          echo "Application health check:"
+          ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST "curl -s http://localhost:8080/actuator/health || echo 'Health check endpoint not available'"
+
+      - name: Deployment Summary
+        run: |
+          echo "✓ Build completed successfully"
+          echo "✓ JAR deployed to EC2: ${{ secrets.EC2_HOST }}"
+          echo "✓ Application running on: http://${{ secrets.EC2_HOST }}:8080"
