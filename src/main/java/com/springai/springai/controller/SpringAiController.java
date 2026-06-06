@@ -11,5 +11,10 @@ public class SpringAiController {
 	public String hello() {
 		return " Hello spring boot developer";
 	}
+	
+	@GetMapping("/spring")
+	public String springdev() {
+		return " Hello spring boot developer springdev";
+	}
 
 }
