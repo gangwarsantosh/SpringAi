@@ -16,5 +16,10 @@ public class SpringAiController {
 	public String springdev() {
 		return " Hello spring boot developer springdev";
 	}
+	
+	@GetMapping("/check")
+	public String checkup() {
+		return " checking how they are making the duplicate for jar file";
+	}
 
 }
