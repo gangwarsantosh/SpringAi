@@ -1,0 +1,384 @@
+{
+  "info": {
+    "_postman_id": "english-ai-api-collection",
+    "name": "English Teaching AI - API Collection",
+    "description": "Complete API endpoints for English Teaching AI Assistant",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Chat",
+      "item": [
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"message\": \"How can I improve my English pronunciation?\",\n  \"conversationId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/chat/send",
+              "host": ["{{base_url}}"],
+              "path": ["chat", "send"]
+            }
+          }
+        },
+        {
+          "name": "Get Chat History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/chat/history/1",
+              "host": ["{{base_url}}"],
+              "path": ["chat", "history", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/user/profile?userId=1",
+              "host": ["{{base_url}}"],
+              "path": ["user", "profile"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Smith\",\n  \"level\": \"ADVANCED\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/user/profile?userId=1",
+              "host": ["{{base_url}}"],
+              "path": ["user", "profile"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Get Skill Stats",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/analytics/stats?userId=1",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "stats"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Daily Stats",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/analytics/daily?userId=1",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "daily"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Progress",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/analytics/progress?userId=1&timeRange=week",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "progress"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "1"
+                },
+                {
+                  "key": "timeRange",
+                  "value": "week"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vocabulary",
+      "item": [
+        {
+          "name": "Get Vocabulary List",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/vocabulary/list",
+              "host": ["{{base_url}}"],
+              "path": ["vocabulary", "list"]
+            }
+          }
+        },
+        {
+          "name": "Search Vocabulary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/vocabulary/search?query=communicate",
+              "host": ["{{base_url}}"],
+              "path": ["vocabulary", "search"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "communicate"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Save Word",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"wordId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/vocabulary/save",
+              "host": ["{{base_url}}"],
+              "path": ["vocabulary", "save"]
+            }
+          }
+        },
+        {
+          "name": "Remove Word",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/vocabulary/remove/1?userId=1",
+              "host": ["{{base_url}}"],
+              "path": ["vocabulary", "remove", "1"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Speaking Practice",
+      "item": [
+        {
+          "name": "Get Scenarios",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/speaking/scenarios?difficulty=INTERMEDIATE",
+              "host": ["{{base_url}}"],
+              "path": ["speaking", "scenarios"],
+              "query": [
+                {
+                  "key": "difficulty",
+                  "value": "INTERMEDIATE"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Start Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 1,\n  \"scenarioId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/speaking/session/start",
+              "host": ["{{base_url}}"],
+              "path": ["speaking", "session", "start"]
+            }
+          }
+        },
+        {
+          "name": "Submit Response",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "sessionId",
+                  "value": "42",
+                  "type": "text"
+                },
+                {
+                  "key": "spokenText",
+                  "value": "I would like to apply for the software engineer position",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/speaking/response",
+              "host": ["{{base_url}}"],
+              "path": ["speaking", "response"]
+            }
+          }
+        },
+        {
+          "name": "End Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": 42\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/speaking/session/end",
+              "host": ["{{base_url}}"],
+              "path": ["speaking", "session", "end"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Grammar",
+      "item": [
+        {
+          "name": "Get Corrections",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/grammar/corrections",
+              "host": ["{{base_url}}"],
+              "path": ["grammar", "corrections"]
+            }
+          }
+        },
+        {
+          "name": "Check Grammar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"She go to school every day\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/grammar/check",
+              "host": ["{{base_url}}"],
+              "path": ["grammar", "check"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Achievements",
+      "item": [
+        {
+          "name": "Get Achievements",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/achievements/list?userId=1",
+              "host": ["{{base_url}}"],
+              "path": ["achievements", "list"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080/api",
+      "type": "string"
+    }
+  ]
+}
