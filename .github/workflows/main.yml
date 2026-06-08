@@ -1,4 +1,4 @@
-name: Build and Deploy WAR to Tomcat EC2
+name: Build and Deploy to AWS EC2
 
 on:
   push:
@@ -7,9 +7,8 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: eu-north-1
-  TOMCAT_VERSION: 10.1.31
-  TOMCAT_DIR: /opt/tomcat
+  APP_NAME: SpringAi
+  AWS_REGION: us-east-1
 
 jobs:
   build-and-deploy:
@@ -26,20 +25,8 @@ jobs:
           java-version: 17
           cache: maven
 
-      - name: Build WAR
+      - name: Build Application
         run: mvn clean package -DskipTests
-
-      - name: Find WAR
-        run: |
-          WAR_FILE=$(find . -name "*.war" | head -1)
-
-          if [ -z "$WAR_FILE" ]; then
-            echo "WAR file not found"
-            exit 1
-          fi
-
-          echo "WAR_FILE=$WAR_FILE" >> $GITHUB_ENV
-          echo "Found: $WAR_FILE"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -48,7 +35,38 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy to EC2 Tomcat
+      - name: Find JAR File
+        run: |
+          JAR_FILE=$(find . -name "*.jar" -type f ! -name "*original*" | head -1)
+          echo "JAR_FILE=$JAR_FILE" >> $GITHUB_ENV
+          echo "Found JAR: $JAR_FILE"
+
+      - name: Copy JAR to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          APP_DIR: /home/${{ secrets.EC2_USER }}/springai
+        run: |
+          # Create .ssh directory and add key
+          mkdir -p ~/.ssh
+          echo "$EC2_SSH_KEY" > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+          
+          # Disable host key checking
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Create application directory on EC2
+          ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST "mkdir -p $APP_DIR/backup"
+          
+          # Backup existing JAR if it exists
+          ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST "if [ -f $APP_DIR/app.jar ]; then mv $APP_DIR/app.jar $APP_DIR/backup/app-backup-$(date +%s).jar; fi"
+          
+          # Copy new JAR
+          scp -i ~/.ssh/ec2_key.pem ${{ env.JAR_FILE }} $EC2_USER@$EC2_HOST:$APP_DIR/app.jar
+          echo "JAR deployed successfully"
+
+      - name: Setup Java on EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
@@ -58,66 +76,66 @@ jobs:
           echo "$EC2_SSH_KEY" > ~/.ssh/ec2_key.pem
           chmod 600 ~/.ssh/ec2_key.pem
           ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
-
-          # Upload WAR
-          scp -i ~/.ssh/ec2_key.pem \
-            ${{ env.WAR_FILE }} \
-            $EC2_USER@$EC2_HOST:/tmp/app.war
-
-          # Deploy
-          ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST << EOF
+          
+          # Install Java on EC2
+          ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST << 'EOF'
+          #!/bin/bash
           set -e
-
-          TOMCAT_VERSION="${TOMCAT_VERSION}"
-          TOMCAT_DIR="${TOMCAT_DIR}"
-
-          echo "=== JAVA CHECK ==="
-          if ! command -v java >/dev/null 2>&1; then
-            sudo yum install -y java-17-amazon-corretto || \
-            sudo dnf install -y java-17-amazon-corretto
-          fi
-
-          java -version
-
-          echo "=== TOMCAT CHECK ==="
-          if [ ! -d "\$TOMCAT_DIR" ]; then
-            wget -q https://archive.apache.org/dist/tomcat/tomcat-10/v\$TOMCAT_VERSION/bin/apache-tomcat-\$TOMCAT_VERSION.tar.gz
-
-            sudo mkdir -p \$TOMCAT_DIR
-
-            sudo tar -xzf apache-tomcat-\$TOMCAT_VERSION.tar.gz \
-              -C \$TOMCAT_DIR \
-              --strip-components=1
-
-            sudo chmod +x \$TOMCAT_DIR/bin/*.sh
-
-            rm -f apache-tomcat-\$TOMCAT_VERSION.tar.gz
-
-            echo "Tomcat installed"
+          
+          # Check if Java is already installed
+          if ! command -v java &> /dev/null; then
+            echo "Java not found. Installing Java 17..."
+            sudo yum update -y
+            sudo yum install -y java-17-amazon-corretto
+            echo "Java installed successfully"
           else
-            echo "Tomcat already installed"
+            echo "Java is already installed"
+            java -version
           fi
+          EOF
 
-          echo "=== STOP TOMCAT ==="
-          sudo \$TOMCAT_DIR/bin/shutdown.sh || true
+      - name: Deploy and Restart Application
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          APP_DIR: /home/${{ secrets.EC2_USER }}/springai
+        run: |
+          mkdir -p ~/.ssh
+          echo "$EC2_SSH_KEY" > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Execute deployment script
+          ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          APP_DIR="/home/${{ secrets.EC2_USER }}/springai"
+          
+          # Stop existing application
+          echo "Stopping existing application..."
+          if pgrep -f "java.*app.jar" > /dev/null; then
+            pkill -f "java.*app.jar" || true
+            sleep 5
+          fi
+          
+          # Start new application
+          echo "Starting new application..."
+          cd $APP_DIR
+          nohup java -jar app.jar > app.log 2>&1 &
+          
+          echo "Application started successfully"
           sleep 10
-
-          echo "=== DEPLOY WAR ==="
-          sudo rm -rf \$TOMCAT_DIR/webapps/app*
-          sudo rm -rf \$TOMCAT_DIR/work/*
-
-          sudo mv /tmp/app.war \$TOMCAT_DIR/webapps/app.war
-
-          echo "=== START TOMCAT ==="
-          sudo \$TOMCAT_DIR/bin/startup.sh
-
-          sleep 30
-
-          echo "=== PROCESS CHECK ==="
-          ps -ef | grep tomcat | grep -v grep || true
-
-          echo "=== LAST 50 LOG LINES ==="
-          sudo tail -50 \$TOMCAT_DIR/logs/catalina.out || true
+          
+          # Check if application is running
+          if pgrep -f "java.*app.jar" > /dev/null; then
+            echo "Application is running"
+          else
+            echo "Application failed to start"
+            tail -20 app.log
+            exit 1
+          fi
           EOF
 
       - name: Verify Deployment
@@ -130,38 +148,23 @@ jobs:
           echo "$EC2_SSH_KEY" > ~/.ssh/ec2_key.pem
           chmod 600 ~/.ssh/ec2_key.pem
           ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
-
-          ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST << 'EOF'
-
-          for i in {1..30}
-          do
-            STATUS=$(curl -s http://localhost:8080/app/actuator/health || true)
-
-            if echo "$STATUS" | grep -q "UP"; then
-              echo "APPLICATION HEALTHY"
-              echo "$STATUS"
+          
+          # Wait for application to be ready
+          for i in {1..30}; do
+            if ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST "curl -f http://localhost:8080/actuator/health 2>/dev/null || true" 2>/dev/null | grep -q "UP\|ok"; then
+              echo "✓ Application is healthy"
+              ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST "curl -s http://localhost:8080/actuator/health"
               exit 0
             fi
-
-            echo "Waiting... ($i/30)"
-            sleep 10
+            echo "Waiting for application to be ready... ($i/30)"
+            sleep 2
           done
+          
+          echo "Application health check:"
+          ssh -i ~/.ssh/ec2_key.pem $EC2_USER@$EC2_HOST "curl -s http://localhost:8080/actuator/health || echo 'Health check endpoint not available'"
 
-          echo "APPLICATION FAILED"
-
-          echo "========== CATALINA.OUT =========="
-          sudo tail -200 /opt/tomcat/logs/catalina.out || true
-
-          echo "========== LOG FILES =========="
-          sudo ls -ltr /opt/tomcat/logs || true
-
-          echo "========== ALL TOMCAT LOGS =========="
-          sudo tail -100 /opt/tomcat/logs/*.log || true
-
-          exit 1
-          EOF
-
-      - name: Summary
+      - name: Deployment Summary
         run: |
-          echo "Deployment completed"
-          echo "App URL: http://${{ secrets.EC2_HOST }}:8080/app"
+          echo "✓ Build completed successfully"
+          echo "✓ JAR deployed to EC2: ${{ secrets.EC2_HOST }}"
+          echo "✓ Application running on: http://${{ secrets.EC2_HOST }}:8080"
