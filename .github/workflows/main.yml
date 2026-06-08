@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: eu-north-1
+  AWS_REGION: us-east-1
   TOMCAT_VERSION: 10.1.31
   TOMCAT_DIR: /opt/tomcat
 
