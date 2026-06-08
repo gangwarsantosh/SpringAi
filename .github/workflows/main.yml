@@ -114,10 +114,21 @@ jobs:
           sleep 30
 
           echo "=== PROCESS CHECK ==="
+               echo "=== PROCESS CHECK ==="
           ps -ef | grep tomcat | grep -v grep || true
 
           echo "=== LAST 50 LOG LINES ==="
-          sudo tail -50 \$TOMCAT_DIR/logs/catalina.out || true
+          sudo tail -50 $TOMCAT_DIR/logs/catalina.out || true
+
+          echo "=== ALL TOMCAT LOGS ==="
+          if ls $TOMCAT_DIR/logs/* >/dev/null 2>&1; then
+            for f in $TOMCAT_DIR/logs/*; do
+              echo "===== $f ====="
+              tail -50 "$f" || true
+            done
+          else
+            echo "No log files found in $TOMCAT_DIR/logs"
+          fi
           EOF
 
       - name: Verify Deployment
